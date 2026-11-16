@@ -67,3 +67,69 @@ class TestJsonImport(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestDuplicateRecordPreservation(unittest.TestCase):
+    def test_distinct_identical_memories_are_preserved(self):
+        with tempfile.TemporaryDirectory() as folder:
+            folder = Path(folder)
+            original = folder / "original.db"
+            restored = folder / "restored.db"
+            backup = folder / "backup.json"
+
+            store = MemoryStore(original)
+            store.add("demo", "Same decision", "manual")
+            store.add("demo", "Same decision", "manual")
+
+            export_json(original, backup)
+
+            self.assertEqual(import_json(restored, backup), 2)
+            self.assertEqual(import_json(restored, backup), 0)
+            self.assertEqual(
+                len(MemoryStore(restored).search("Same decision")),
+                2,
+            )
+
+
+class TestDuplicateRecordPreservation(unittest.TestCase):
+    def test_distinct_identical_memories_are_preserved(self):
+        with tempfile.TemporaryDirectory() as folder:
+            folder = Path(folder)
+            original = folder / "original.db"
+            restored = folder / "restored.db"
+            backup = folder / "backup.json"
+
+            store = MemoryStore(original)
+            store.add("demo", "Same decision", "manual")
+            store.add("demo", "Same decision", "manual")
+
+            export_json(original, backup)
+
+            self.assertEqual(import_json(restored, backup), 2)
+            self.assertEqual(import_json(restored, backup), 0)
+            self.assertEqual(
+                len(MemoryStore(restored).search("Same decision")),
+                2,
+            )
+
+
+class TestImportIdConflict(unittest.TestCase):
+    def test_conflicting_id_raises_error(self):
+        with tempfile.TemporaryDirectory() as folder:
+            folder = Path(folder)
+            source = folder / "source.db"
+            target = folder / "target.db"
+            backup = folder / "backup.json"
+
+            MemoryStore(source).add("source", "Backup memory")
+            MemoryStore(target).add("target", "Existing memory")
+
+            export_json(source, backup)
+
+            with self.assertRaises(ValueError):
+                import_json(target, backup)
+
+            self.assertEqual(
+                len(MemoryStore(target).search("Existing memory")),
+                1,
+            )

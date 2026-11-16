@@ -41,24 +41,35 @@ def import_json(database_path, input_path):
         if not isinstance(label, str):
             raise ValueError("Invalid source")
 
-        validated.append((project, content, label, created_at))
+        memory_id = record.get("id")
+        if type(memory_id) is not int or memory_id < 1:
+            raise ValueError("Invalid memory ID")
+
+        validated.append((memory_id, project, content, label, created_at))
 
     store = MemoryStore(database_path)
     imported = 0
 
     with store._connect() as db:
-        for project, content, label, created_at in validated:
+        for memory_id, project, content, label, created_at in validated:
             exists = db.execute(
-                "SELECT 1 FROM memories "
-                "WHERE project=? AND content=? AND source=? LIMIT 1",
-                (project, content, label),
+                "SELECT project, content, source, created_at "
+                "FROM memories WHERE id=?",
+                (memory_id,),
             ).fetchone()
 
-            if not exists:
+            if exists is not None:
+                if tuple(exists) != (project, content, label, created_at):
+                    raise ValueError(
+                        f"Memory ID conflict: {memory_id}"
+                    )
+                continue
+
+            if exists is None:
                 db.execute(
-                    "INSERT INTO memories(project, content, source, created_at) "
-                    "VALUES (?, ?, ?, ?)",
-                    (project, content, label, created_at),
+                    "INSERT INTO memories(id, project, content, source, created_at) "
+                    "VALUES (?, ?, ?, ?, ?)",
+                    (memory_id, project, content, label, created_at),
                 )
                 imported += 1
 
